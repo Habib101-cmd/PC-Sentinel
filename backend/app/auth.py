@@ -12,6 +12,8 @@ from .database import get_db
 from .models import User
 
 JWT_SECRET = os.environ["JWT_SECRET"]
+if len(JWT_SECRET) < 32 or JWT_SECRET == "changeme":
+    raise RuntimeError("JWT_SECRET absent, trop court ou non modifié (32 caractères minimum).")
 JWT_ALGORITHM = "HS256"
 TOKEN_DURATION = timedelta(hours=8)
 

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "https://localhost:8443";
 const TOKEN_KEY = "pc-sentinel-token";
 
 export const getToken = () => sessionStorage.getItem(TOKEN_KEY) || "";
