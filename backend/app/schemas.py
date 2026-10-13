@@ -1,7 +1,10 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+import json
+
+from pydantic import BaseModel, Field, field_validator
+
 
 Severity = Literal["Information", "Faible", "Moyen", "Élevé"]
 AuditStatus = Literal["aucun_indicateur", "a_verifier", "a_risque"]
@@ -12,6 +15,13 @@ class Check(BaseModel):
     status: Literal["ok", "unavailable"]
     data: dict = Field(default_factory=dict)
     error: str | None = Field(default=None, max_length=300)
+
+    @field_validator("data")
+    @classmethod
+    def data_not_too_big(cls, value: dict) -> dict:
+        if len(json.dumps(value)) > 200_000:
+            raise ValueError("données trop volumineuses")
+        return value
 
 
 class OsInfo(BaseModel):

@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable
 
-RULESET_VERSION = "0.1.0"
+RULESET_VERSION = "0.2.0"
 
-# Contrôles que l'agent doit envoyer. Un contrôle absent compte comme indisponible.
-EXPECTED_CHECKS = ["firewall", "antivirus"]
+EXPECTED_CHECKS = [
+    "firewall", "antivirus", "updates", "startup", "processes", "failed_logons",
+]
 
 
 @dataclass(frozen=True)
