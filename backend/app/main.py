@@ -1,9 +1,12 @@
-from contextlib import asynccontextmanager
+import logging
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -14,35 +17,22 @@ from .auth import (
     hash_password,
     verify_password,
 )
-from .database import Base, engine, get_db
-
-from datetime import datetime, timezone
-from uuid import uuid4
-
-from sqlalchemy import delete
-
+from .database import get_db
+from .log import log_event
 from .models import Audit, User
+from .ratelimit import login_ip_limiter, login_user_limiter, register_ip_limiter
+from .report import render_report
 from .rules import RULESET_VERSION, evaluate, global_status
 from .schemas import Alert, AuditRequest, AuditResult, OsInfo
-from fastapi.responses import HTMLResponse
 
-from .report import render_report
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
-
-app = FastAPI(title="PC Sentinel API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="PC Sentinel API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -61,37 +51,77 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "inconnu"
+
+
+def too_many_requests(wait: int) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail=f"Trop de tentatives. Réessayez dans {wait} secondes.",
+        headers={"Retry-After": str(wait)},
+    )
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
 @app.post("/auth/register", status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
+def register(data: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    wait = register_ip_limiter.retry_after(ip)
+    if wait:
+        log_event("register_blocked", level=logging.WARNING, ip=ip, retry_after=wait)
+        raise too_many_requests(wait)
+    register_ip_limiter.add(ip)
+
     user = User(username=data.username, password_hash=hash_password(data.password))
     db.add(user)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
+        log_event("register_conflict", ip=ip)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ce nom d'utilisateur existe déjà.",
         )
+    log_event("register_ok", ip=ip, user_id=user.id)
     return {"message": "Compte créé avec succès."}
 
 
 @app.post("/auth/login", response_model=Token)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    user_key = f"{ip}|{data.username.lower()}"
+
+    wait = max(login_user_limiter.retry_after(user_key), login_ip_limiter.retry_after(ip))
+    if wait:
+        log_event("login_blocked", level=logging.WARNING, ip=ip, retry_after=wait)
+        raise too_many_requests(wait)
+
     user = db.scalar(select(User).where(User.username == data.username))
     stored_hash = user.password_hash if user else DUMMY_HASH
     valid = verify_password(data.password, stored_hash)
 
     if user is None or not valid:
+        login_user_limiter.add(user_key)
+        login_ip_limiter.add(ip)
+        log_event(
+            "login_failed",
+            level=logging.WARNING,
+            ip=ip,
+            user_id=user.id if user else "inconnu",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nom d'utilisateur ou mot de passe incorrect.",
         )
+
+    login_user_limiter.clear(user_key)
+    log_event("login_ok", ip=ip, user_id=user.id)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -154,6 +184,14 @@ def create_audit(
     )
     db.add(audit)
     db.commit()
+    log_event(
+        "audit_created",
+        user_id=current_user.id,
+        audit_id=audit.audit_id,
+        status=risk_status,
+        alerts=len(alerts),
+        unavailable=len(unavailable),
+    )
     return audit_to_result(audit)
 
 
@@ -186,6 +224,7 @@ def get_report(
 ):
     audit = find_own_audit(db, audit_id, current_user)
     html = render_report(audit_to_result(audit), audit.checks)
+    log_event("report_generated", user_id=current_user.id, audit_id=audit.audit_id)
     return HTMLResponse(
         content=html,
         headers={
@@ -202,14 +241,18 @@ def delete_audit(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db.delete(find_own_audit(db, audit_id, current_user))
+    audit = find_own_audit(db, audit_id, current_user)
+    db.delete(audit)
     db.commit()
+    log_event("audit_deleted", user_id=current_user.id, audit_id=audit_id)
 
 
 @app.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    db.execute(delete(Audit).where(Audit.user_id == current_user.id))
-    db.execute(delete(User).where(User.id == current_user.id))
+    user_id = current_user.id
+    db.execute(delete(Audit).where(Audit.user_id == user_id))
+    db.execute(delete(User).where(User.id == user_id))
     db.commit()
+    log_event("account_deleted", user_id=user_id)

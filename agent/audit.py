@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import re
+import ssl
 import subprocess
 import sys
 import time
@@ -14,8 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-API_URL = os.environ.get("PC_SENTINEL_API_URL", "http://localhost:8000").rstrip("/")
-
+API_URL = os.environ.get("PC_SENTINEL_API_URL", "https://localhost:8443").rstrip("/")
+CA_FILE = os.environ.get("PC_SENTINEL_CA_FILE")  # certificat de l'autorité locale (dev)
 # Cette liste est affichée à l'utilisateur AVANT le consentement.
 # Elle doit toujours correspondre exactement à ce que l'agent collecte.
 COLLECTED_DATA = [
@@ -214,6 +215,21 @@ def read_failed_logons():
 # ------------------------------------------------------------------------ API
 
 
+def make_ssl_context():
+    if CA_FILE:
+        return ssl.create_default_context(cafile=CA_FILE)
+    return None
+
+
+def describe_url_error(error):
+    if isinstance(error.reason, ssl.SSLCertVerificationError):
+        return (
+            "Certificat du serveur non reconnu. En développement, définissez "
+            "PC_SENTINEL_CA_FILE avec le chemin de certs\\caddy-root.crt."
+        )
+    return f"Serveur injoignable : {error.reason}"
+
+
 def send_request(path, data, token=None, method="POST"):
     headers = {"Content-Type": "application/json"}
     if token:
@@ -224,7 +240,7 @@ def send_request(path, data, token=None, method="POST"):
         headers=headers,
         method=method,
     )
-    with urlopen(request, timeout=15) as response:
+    with urlopen(request, timeout=15, context=make_ssl_context()) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -315,10 +331,14 @@ def main():
     try:
         token = login(username, password)
     except HTTPError as error:
-        print(f"Connexion refusée ({error.code}).")
+        if error.code == 429:
+            wait = error.headers.get("Retry-After", "quelques")
+            print(f"Trop de tentatives de connexion : réessayez dans {wait} s.")
+        else:
+            print(f"Connexion refusée ({error.code}).")
         return
     except URLError as error:
-        print(f"Serveur injoignable : {error.reason}")
+        print(describe_url_error(error))
         return
 
     print("\nAudit en cours...")
@@ -346,7 +366,7 @@ def main():
     except HTTPError as error:
         print(f"Erreur de l'API ({error.code}) : {error.read().decode('utf-8')[:300]}")
     except URLError as error:
-        print(f"Serveur injoignable : {error.reason}")
+        print(describe_url_error(error))
 
 
 if __name__ == "__main__":
