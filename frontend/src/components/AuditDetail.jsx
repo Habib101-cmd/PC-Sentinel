@@ -1,9 +1,21 @@
+import { useState } from "react";
+import { downloadReport, openReport } from "../api.js";
 import { checkLabel, formatDate, sortBySeverity } from "../labels.js";
 import AlertCard from "./AlertCard.jsx";
 import StatusBadge from "./StatusBadge.jsx";
 
 export default function AuditDetail({ audit, onBack, onDelete }) {
   const alerts = sortBySeverity(audit.alerts);
+  const [reportError, setReportError] = useState("");
+
+  async function handleReport(action) {
+    setReportError("");
+    try {
+      await action(audit.audit_id);
+    } catch (err) {
+      setReportError(err.message);
+    }
+  }
 
   return (
     <>
@@ -23,6 +35,13 @@ export default function AuditDetail({ audit, onBack, onDelete }) {
           <StatusBadge status={audit.status} />
         </div>
         <p>{audit.summary}</p>
+        <div className="actions">
+          <button onClick={() => handleReport(openReport)}>Consulter le rapport</button>
+          <button className="secondary" onClick={() => handleReport(downloadReport)}>
+            Télécharger (HTML)
+          </button>
+        </div>
+        {reportError && <p className="error" role="alert">{reportError}</p>}
       </section>
 
       <section className="card">

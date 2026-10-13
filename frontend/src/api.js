@@ -63,3 +63,42 @@ export const listAudits = () => request("/audits");
 export const deleteAudit = (id) =>
   request(`/audits/${id}`, { method: "DELETE" });
 export const deleteAccount = () => request("/users/me", { method: "DELETE" });
+
+async function fetchReport(id) {
+  let response;
+  try {
+    response = await fetch(`${API_URL}/audits/${id}/report`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+  } catch {
+    throw new ApiError("Serveur injoignable.", 0);
+  }
+  if (!response.ok) {
+    throw new ApiError("Impossible de générer le rapport.", response.status);
+  }
+  return response.blob();
+}
+
+export async function openReport(id) {
+  // L'onglet est ouvert avant l'attente réseau, sinon le navigateur bloque la fenêtre.
+  const tab = window.open("about:blank", "_blank");
+  try {
+    const url = URL.createObjectURL(await fetchReport(id));
+    if (tab) tab.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    if (tab) tab.close();
+    throw err;
+  }
+}
+
+export async function downloadReport(id) {
+  const url = URL.createObjectURL(await fetchReport(id));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `rapport-pc-sentinel-${id}.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
