@@ -24,6 +24,9 @@ from sqlalchemy import delete
 from .models import Audit, User
 from .rules import RULESET_VERSION, evaluate, global_status
 from .schemas import Alert, AuditRequest, AuditResult, OsInfo
+from fastapi.responses import HTMLResponse
+
+from .report import render_report
 
 
 @asynccontextmanager
@@ -173,6 +176,24 @@ def get_audit(
     db: Session = Depends(get_db),
 ):
     return audit_to_result(find_own_audit(db, audit_id, current_user))
+
+
+@app.get("/audits/{audit_id}/report", response_class=HTMLResponse)
+def get_report(
+    audit_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    audit = find_own_audit(db, audit_id, current_user)
+    html = render_report(audit_to_result(audit), audit.checks)
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Content-Disposition": f'attachment; filename="rapport-pc-sentinel-{audit.audit_id}.html"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.delete("/audits/{audit_id}", status_code=status.HTTP_204_NO_CONTENT)
