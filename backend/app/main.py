@@ -15,7 +15,15 @@ from .auth import (
     verify_password,
 )
 from .database import Base, engine, get_db
-from .models import User
+
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from sqlalchemy import delete
+
+from .models import Audit, User
+from .rules import RULESET_VERSION, evaluate, global_status
+from .schemas import Alert, AuditRequest, AuditResult, OsInfo
 
 
 @asynccontextmanager
@@ -87,3 +95,100 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/me")
 def me(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username}
+
+
+def audit_to_result(audit: Audit) -> AuditResult:
+    return AuditResult(
+        audit_id=audit.audit_id,
+        audited_at=audit.audited_at,
+        device_name=audit.device_name,
+        os=OsInfo(name=audit.os_name, version=audit.os_version),
+        duration_seconds=audit.duration_seconds,
+        status=audit.status,
+        summary=audit.summary,
+        alerts=[Alert(**a) for a in audit.alerts],
+        checks_performed=[c["id"] for c in audit.checks if c["status"] == "ok"],
+        unavailable_checks=audit.unavailable_checks,
+        ruleset_version=audit.ruleset_version,
+    )
+
+
+def find_own_audit(db: Session, audit_id: str, user: User) -> Audit:
+    audit = db.scalar(
+        select(Audit).where(Audit.audit_id == audit_id, Audit.user_id == user.id)
+    )
+    if audit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Audit introuvable."
+        )
+    return audit
+
+
+@app.post("/audits", response_model=AuditResult, status_code=status.HTTP_201_CREATED)
+def create_audit(
+    data: AuditRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw_alerts, unavailable = evaluate([c.model_dump() for c in data.checks])
+    alerts = [Alert(**a) for a in raw_alerts]
+    risk_status, summary = global_status(raw_alerts, unavailable)
+
+    audit = Audit(
+        audit_id=str(uuid4()),
+        user_id=current_user.id,
+        device_name=data.device_name,
+        os_name=data.os.name,
+        os_version=data.os.version,
+        duration_seconds=data.duration_seconds,
+        audited_at=datetime.now(timezone.utc),
+        status=risk_status,
+        summary=summary,
+        ruleset_version=RULESET_VERSION,
+        checks=[c.model_dump(mode="json") for c in data.checks],
+        alerts=[a.model_dump(mode="json") for a in alerts],
+        unavailable_checks=unavailable,
+    )
+    db.add(audit)
+    db.commit()
+    return audit_to_result(audit)
+
+
+@app.get("/audits", response_model=list[AuditResult])
+def list_audits(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    audits = db.scalars(
+        select(Audit)
+        .where(Audit.user_id == current_user.id)
+        .order_by(Audit.audited_at.desc())
+    ).all()
+    return [audit_to_result(a) for a in audits]
+
+
+@app.get("/audits/{audit_id}", response_model=AuditResult)
+def get_audit(
+    audit_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return audit_to_result(find_own_audit(db, audit_id, current_user))
+
+
+@app.delete("/audits/{audit_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_audit(
+    audit_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.delete(find_own_audit(db, audit_id, current_user))
+    db.commit()
+
+
+@app.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    db.execute(delete(Audit).where(Audit.user_id == current_user.id))
+    db.execute(delete(User).where(User.id == current_user.id))
+    db.commit()
