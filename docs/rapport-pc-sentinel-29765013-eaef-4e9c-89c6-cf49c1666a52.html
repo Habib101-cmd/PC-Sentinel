@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rapport d'audit PC Sentinel – PC-DEMO-RISQUE</title>
+    <style>
+      body {
+        font-family: system-ui, "Segoe UI", sans-serif;
+        color: #1c2333;
+        max-width: 860px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      h1 {
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        border-bottom: 2px solid #dde2ec;
+        padding-bottom: 0.25rem;
+      }
+      h3 {
+        margin: 0 0 0.5rem;
+      }
+      .eyebrow {
+        margin: 0;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #2563eb;
+        font-weight: 700;
+      }
+      .notice {
+        border-left: 4px solid #b45309;
+        background: #fdf6e9;
+        padding: 0.6rem 1rem;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.05rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid currentColor;
+      }
+      .status-aucun_indicateur {
+        color: #15803d;
+      }
+      .status-a_verifier {
+        color: #b45309;
+      }
+      .status-a_risque {
+        color: #b91c1c;
+      }
+      .high {
+        color: #b91c1c;
+      }
+      .medium {
+        color: #b45309;
+      }
+      .low {
+        color: #2563eb;
+      }
+      .info {
+        color: #5d6679;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.4rem 0.6rem;
+        border-bottom: 1px solid #dde2ec;
+        vertical-align: top;
+      }
+      th {
+        width: 14rem;
+        color: #5d6679;
+        font-weight: 600;
+      }
+      .counts td,
+      .counts th {
+        text-align: center;
+        width: auto;
+      }
+      .alert {
+        border: 1px solid #dde2ec;
+        border-left-width: 5px;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin: 1rem 0;
+        break-inside: avoid;
+      }
+      dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 11rem 1fr;
+        gap: 0.3rem 0.75rem;
+      }
+      dt {
+        font-weight: 600;
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      footer {
+        margin-top: 2.5rem;
+        color: #5d6679;
+        font-size: 0.85rem;
+      }
+      @media (max-width: 600px) {
+        dl {
+          grid-template-columns: 1fr;
+        }
+        th {
+          width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <p class="eyebrow">PC Sentinel · Rapport d'audit</p>
+    <h1>PC-DEMO-RISQUE</h1>
+    <p><span class="badge status-a_risque">Indicateurs à risque détectés</span></p>
+
+    <p class="notice">
+      Un audit sans alerte ne prouve pas l'absence d'attaque. Les résultats
+      ci-dessous sont des indicateurs à vérifier, pas des preuves de
+      compromission.
+    </p>
+
+    <h2>1. Résumé</h2>
+    <table>
+      <tr>
+        <th>Appareil</th>
+        <td>PC-DEMO-RISQUE</td>
+      </tr>
+      <tr>
+        <th>Système</th>
+        <td>Windows 10 (10.0.19045)</td>
+      </tr>
+      <tr>
+        <th>Date de l'audit</th>
+        <td>15/10/2026 à 13:49 UTC</td>
+      </tr>
+      <tr>
+        <th>Durée de l'audit</th>
+        <td>5.8 s</td>
+      </tr>
+      <tr>
+        <th>Version des règles</th>
+        <td>0.2.0</td>
+      </tr>
+      <tr>
+        <th>Identifiant de l'audit</th>
+        <td>29765013-eaef-4e9c-89c6-cf49c1666a52</td>
+      </tr>
+      <tr>
+        <th>Rapport généré le</th>
+        <td>15/10/2026 à 13:51 UTC</td>
+      </tr>
+    </table>
+    <p>Indicateurs à risque détectés. Ils sont à vérifier manuellement.</p>
+    <table class="counts">
+      <tr>
+        <th class="high">Élevé</th>
+        <th class="medium">Moyen</th>
+        <th class="low">Faible</th>
+        <th class="info">Information</th>
+      </tr>
+      <tr>
+        <td><strong>1</strong></td>
+        <td><strong>1</strong></td>
+        <td><strong>1</strong></td>
+        <td><strong>0</strong></td>
+      </tr>
+    </table>
+
+    <h2>2. Contrôles effectués</h2>
+    <ul>
+      <li>Pare-feu</li>
+      <li>Antivirus</li>
+      <li>Mises à jour</li>
+      <li>Programmes au démarrage</li>
+      <li>Processus en cours</li>
+      <li>Échecs de connexion</li>
+    </ul>
+
+    <h2>3. Alertes détaillées (3)</h2>
+    <article class="alert high">
+      <h3>
+        1. Protection antivirus désactivée
+        <span class="badge high">Élevé</span>
+      </h3>
+      <dl>
+        <dt>Catégorie</dt>
+        <dd>Protection</dd>
+        <dt>Élément concerné</dt>
+        <dd>Windows Defender</dd>
+        <dt>Règle déclenchée</dt>
+        <dd>R002 (version 1.0)</dd>
+        <dt>Date et heure</dt>
+        <dd>15/10/2026 à 13:49 UTC</dd>
+        <dt>Explication</dt>
+        <dd>Un antivirus est enregistré dans Windows, mais il est signalé comme désactivé : le PC n&#39;est plus protégé en temps réel.</dd>
+        <dt>Recommandation</dt>
+        <dd>Réactivez la protection dans Sécurité Windows &gt; Protection contre les virus.</dd>
+        <dt>Limites du contrôle</dt>
+        <dd>L&#39;état est lu dans le Centre de sécurité Windows. Un produit peut le déclarer de façon inexacte.</dd>
+      </dl>
+    </article>
+    <article class="alert medium">
+      <h3>
+        2. Échecs de connexion répétés
+        <span class="badge medium">Moyen</span>
+      </h3>
+      <dl>
+        <dt>Catégorie</dt>
+        <dd>Authentification</dd>
+        <dt>Élément concerné</dt>
+        <dd>37 échecs de connexion sur les 24 dernières heures</dd>
+        <dt>Règle déclenchée</dt>
+        <dd>R007 (version 1.0)</dd>
+        <dt>Date et heure</dt>
+        <dd>15/10/2026 à 13:49 UTC</dd>
+        <dt>Explication</dt>
+        <dd>Au moins 10 tentatives de connexion Windows ont échoué sur la période. Cela peut indiquer quelqu&#39;un qui devine un mot de passe.</dd>
+        <dt>Recommandation</dt>
+        <dd>Si ces échecs ne sont pas de votre fait, changez le mot de passe du compte et vérifiez que le bureau à distance n&#39;est pas exposé.</dd>
+        <dt>Limites du contrôle</dt>
+        <dd>Le journal compte aussi des erreurs bénignes (mot de passe tapé de travers, services mal configurés). Seul le nombre est analysé, pas la source.</dd>
+      </dl>
+    </article>
+    <article class="alert low">
+      <h3>
+        3. Aucun correctif Windows récent
+        <span class="badge low">Faible</span>
+      </h3>
+      <dl>
+        <dt>Catégorie</dt>
+        <dd>Mises à jour</dd>
+        <dt>Élément concerné</dt>
+        <dd>Dernier correctif : 2026-06-17 (il y a 120 jours)</dd>
+        <dt>Règle déclenchée</dt>
+        <dd>R004 (version 1.0)</dd>
+        <dt>Date et heure</dt>
+        <dd>15/10/2026 à 13:49 UTC</dd>
+        <dt>Explication</dt>
+        <dd>Aucun correctif n&#39;a été installé depuis plus de 60 jours. Les mises à jour corrigent des failles que des attaquants exploitent.</dd>
+        <dt>Recommandation</dt>
+        <dd>Ouvrez Paramètres &gt; Windows Update et installez les mises à jour proposées.</dd>
+        <dt>Limites du contrôle</dt>
+        <dd>La liste des correctifs vient de Get-HotFix, qui ne couvre pas toutes les mises à jour (pilotes, Microsoft Store, définitions antivirus).</dd>
+      </dl>
+    </article>
+
+    <h2>4. Recommandations</h2>
+    <ol>
+      <li>
+        <strong>Protection antivirus désactivée</strong> (Élevé) : Réactivez la protection dans Sécurité Windows &gt; Protection contre les virus.
+      </li>
+      <li>
+        <strong>Échecs de connexion répétés</strong> (Moyen) : Si ces échecs ne sont pas de votre fait, changez le mot de passe du compte et vérifiez que le bureau à distance n&#39;est pas exposé.
+      </li>
+      <li>
+        <strong>Aucun correctif Windows récent</strong> (Faible) : Ouvrez Paramètres &gt; Windows Update et installez les mises à jour proposées.
+      </li>
+    </ol>
+
+    <h2>5. Contrôles non réalisés</h2>
+    <p>Tous les contrôles prévus ont été réalisés.</p>
+
+    <h2>6. Limites de cet audit</h2>
+    <ul>
+      <li>
+        PC Sentinel est un outil de diagnostic et de sensibilisation, pas un
+        antivirus.
+      </li>
+      <li>
+        Une détection est un indicateur à examiner : un programme légitime peut
+        sembler inhabituel (faux positif).
+      </li>
+      <li>
+        Un audit de base peut manquer une attaque ; l'absence d'alerte ne
+        constitue pas une certification.
+      </li>
+      <li>
+        Les limites propres à chaque contrôle sont précisées dans les alertes
+        ci-dessus.
+      </li>
+    </ul>
+
+    <footer>
+      Rapport généré par PC Sentinel, audit en lecture seule. Aucune donnée n'a
+      été modifiée sur l'ordinateur audité.
+    </footer>
+  </body>
+</html>
